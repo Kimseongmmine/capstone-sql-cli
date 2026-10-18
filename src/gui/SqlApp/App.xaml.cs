@@ -24,11 +24,13 @@ public partial class App : Application
         AppWindow = MainWindow;
         MainWindow.Title = "Capstone SQL AI Assistant";
 
+#if WINDOWS
         try
         {
             MainWindow.SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
         }
         catch { }
+#endif
 
 #if DEBUG
         // MainWindow.UseStudio();

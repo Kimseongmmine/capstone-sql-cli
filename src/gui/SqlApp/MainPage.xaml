@@ -150,7 +150,6 @@
                              FontSize="12.5" Padding="4,2" VerticalAlignment="Center"
                              Background="Transparent" BorderThickness="0"
                              IsSpellCheckEnabled="False"
-                             IsTextPredictionEnabled="False"
                              UseSystemFocusVisuals="False"
                              KeyDown="EditTitleTextBox_KeyDown">
                       <TextBox.Resources>
@@ -626,7 +625,6 @@
                            AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52" MaxHeight="160"
                            BorderThickness="0" Background="Transparent" Padding="6,6,6,8" FontSize="15"
                            IsSpellCheckEnabled="False"
-                           IsTextPredictionEnabled="False"
                            UseSystemFocusVisuals="False"
                            PreviewKeyDown="PromptTextBox_PreviewKeyDown">
                     <TextBox.Resources>
@@ -711,7 +709,6 @@
                                    VerticalContentAlignment="Center"
                                    Background="Transparent" BorderThickness="0"
                                    IsSpellCheckEnabled="False"
-                                   IsTextPredictionEnabled="False"
                                    UseSystemFocusVisuals="False">
                             <TextBox.Resources>
                               <!-- Background transparency for all states -->

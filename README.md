@@ -198,6 +198,10 @@ cmake --build build --target sql-cli --config Release
 
 .NET 10 (LTS) 기반의 데스크톱 대화형 GUI 애플리케이션입니다. C 추론 엔진(`sql_engine.dll` / `libsql_engine.so`) 및 SQLite와 직접 연동되어 Claude Desktop 스타일의 멀티 세션 대화 환경을 제공합니다.
 
+![GUI 실행 화면 - 질의 모드 및 세션 관리](docs/gui_1.png)
+
+![GUI 실행 화면 - 후처리 교정 및 DB 쿼리 결과](docs/gui_2.png)
+
 ### 1) 사전 준비: C 공유 라이브러리 및 바인딩 빌드
 
 GUI가 P/Invoke로 호출할 C 공유 라이브러리를 먼저 컴파일합니다 (반드시 1번 → 2번 순서대로 실행):
