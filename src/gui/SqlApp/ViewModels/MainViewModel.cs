@@ -491,18 +491,72 @@ namespace SqlApp.ViewModels
             try
             {
                 var result = await _sqlExecutionService.ExecuteQueryAsync(SelectedSession.DbPath, message.Sql);
-                message.QueryResult = result;
+                ApplyQueryResult(message, result);
             }
             catch (Exception ex)
             {
-                message.QueryResult = new QueryResultData
+                var errorResult = new QueryResultData
                 {
                     ErrorMessage = $"실행 실패: {ex.Message}"
                 };
+                ApplyQueryResult(message, errorResult);
             }
             finally
             {
                 message.IsRunningQuery = false;
+                _ = _sessionStorageService.SaveSessionsAsync(Sessions);
+            }
+        }
+
+        private void ApplyQueryResult(ChatMessage message, QueryResultData result)
+        {
+            if (SelectedSession == null) return;
+
+            // 1. 이미 생성된 결과 말풍선이 있는지 확인 (ID 매칭 또는 바로 다음 메시지 확인)
+            ChatMessage? existingResultMsg = null;
+            if (message.ResultMessageId.HasValue)
+            {
+                existingResultMsg = SelectedSession.Messages.FirstOrDefault(m => m.Id == message.ResultMessageId.Value);
+            }
+
+            if (existingResultMsg == null)
+            {
+                int currentIdx = SelectedSession.Messages.IndexOf(message);
+                if (currentIdx >= 0 && currentIdx + 1 < SelectedSession.Messages.Count &&
+                    SelectedSession.Messages[currentIdx + 1].Sender == MessageSender.QueryResult)
+                {
+                    existingResultMsg = SelectedSession.Messages[currentIdx + 1];
+                    message.ResultMessageId = existingResultMsg.Id;
+                }
+            }
+
+            // 2. 이미 존재하면 기존 말풍선에 결과만 갱신
+            if (existingResultMsg != null)
+            {
+                existingResultMsg.QueryResult = result;
+                existingResultMsg.IsQueryResultExpanded = true;
+            }
+            else
+            {
+                // 3. 존재하지 않으면 새 말풍선 생성 후 해당 모델 메시지 바로 아래에 삽입
+                var newResultMsg = new ChatMessage
+                {
+                    Sender = MessageSender.QueryResult,
+                    Sql = message.Sql,
+                    QueryResult = result,
+                    IsQueryResultExpanded = true
+                };
+                message.ResultMessageId = newResultMsg.Id;
+
+                int index = SelectedSession.Messages.IndexOf(message);
+                if (index >= 0 && index + 1 <= SelectedSession.Messages.Count)
+                {
+                    SelectedSession.Messages.Insert(index + 1, newResultMsg);
+                }
+                else
+                {
+                    SelectedSession.Messages.Add(newResultMsg);
+                }
             }
         }
 

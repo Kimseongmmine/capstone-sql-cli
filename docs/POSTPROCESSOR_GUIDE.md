@@ -1,23 +1,29 @@
 # SQL Post-processor C 구현 가이드
 
-학습 저장소의 Python 구현체(`src/postprocessor/python`)와 같은 알고리즘·동작을 하도록 C 언어로 작성된 핵심 라이브러리 모듈(`src/core/postprocessor/`)에 대한 설계 및 사용 설명서입니다.
-
-C 프로젝트에서 헤더를 인클루드하여 정적 라이브러리(`postprocessor.lib` 또는 `libpostprocessor.a`)로 링크해 사용할 수 있으며, 통합 CLI 도구(`build/sql-cli`)의 `--postprocess` 모드로 단독 실행할 수도 있습니다.
-
----
-
 ## 1. 아키텍처 및 모듈 구성
 
-모듈은 `src/core/postprocessor/` 디렉터리에 위치하며 다음 파일들로 구성되어 있습니다:
+C 언어 기반 SQL 후처리기는 독립 라이브러리 및 상위 추론 파이프라인과 유기적으로 결합되어 있으며, `src/core/` 및 바인딩 계층에 다음과 같이 구성되어 있습니다:
 
+### 1) 후처리기 코어 모듈 (`src/core/postprocessor/`)
 | 파일명 | 역할 설명 |
 | :--- | :--- |
-| [`postprocessor.h`](../src/core/postprocessor/postprocessor.h) / [`../include/postprocessor.h`](../src/core/include/postprocessor.h) | 외부 공개용 C 라이브러리 인터페이스 헤더 |
-| [`core.h`](../src/core/postprocessor/core.h) / [`core.c`](../src/core/postprocessor/core.c) | 전체 교정 파이프라인(`process_sql`) 제어 및 오케스트레이션 |
-| [`parser.h`](../src/core/postprocessor/parser.h) / [`parser.c`](../src/core/postprocessor/parser.c) | SQL 예약어 사전 보정(`pre_correct_keywords`), 토크나이저 및 SQL 재구성기 |
-| [`replacement.h`](../src/core/postprocessor/replacement.h) / [`replacement.c`](../src/core/postprocessor/replacement.c) | Typo(difflib 비율), N-gram(Jaccard 유사도), Semantic(임베딩 코사인 유사도) 교정기 및 전략 체이닝 |
-| [`schema.h`](../src/core/postprocessor/schema.h) / [`schema.c`](../src/core/postprocessor/schema.c) | SQLite 데이터베이스로부터 테이블 및 컬럼 스키마 사전 로더 |
-| [`tests/test_postprocessor.c`](../tests/test_postprocessor.c) | Python 테스트 케이스를 1:1 검증하는 C 단위 테스트 |
+| [`core.h`](../src/core/postprocessor/core.h) / [`core.c`](../src/core/postprocessor/core.c) | 전체 교정 파이프라인(`process_sql`) 제어 및 계단식 교정 레벨(`PostprocessLevel`) 오케스트레이션 |
+| [`parser.h`](../src/core/postprocessor/parser.h) / [`parser.c`](../src/core/postprocessor/parser.c) | SQL 예약어 사전 보정(`pre_correct_keywords`), 토크나이저(`tokenize_sql`), 서식 보존 SQL 재구성기(`reconstruct_sql`) |
+| [`replacement.h`](../src/core/postprocessor/replacement.h) / [`replacement.c`](../src/core/postprocessor/replacement.c) | 식별자 교정 전략 구현 (Typo: Gestalt Pattern Matching, N-gram: 2-gram Jaccard, Semantic: GloVe 코사인 유사도 & snake_case Mean Pooling) 및 전략 체이닝 |
+| [`schema.h`](../src/core/postprocessor/schema.h) / [`schema.c`](../src/core/postprocessor/schema.c) | SQLite 데이터베이스로부터 테이블 및 컬럼 스키마 사전 동적 추출(`load_dictionary_from_sqlite`) |
+| [`postprocessor.h`](../src/core/postprocessor/postprocessor.h) | `src/core/include/postprocessor.h`를 참조하는 내부 포워딩 헤더 |
+
+### 2) 공개 인터페이스 및 상위 파이프라인 (`src/core/include/`, `src/core/pipeline/`)
+| 파일명 | 역할 설명 |
+| :--- | :--- |
+| [`include/postprocessor.h`](../src/core/include/postprocessor.h) | 외부 공개용 C 라이브러리 인터페이스 헤더 (`process_sql`, `pre_correct_keywords`, `typo_correction`, `ngram_correction`, `semantic_correction` 등) |
+| [`include/pipeline.h`](../src/core/include/pipeline.h) / [`pipeline/pipeline.c`](../src/core/pipeline/pipeline.c) | 모델 추론 $\rightarrow$ 후처리 $\rightarrow$ DB 실행을 원스톱으로 연결하는 상위 통합 실행 파이프라인 |
+
+### 3) 상위 바인딩 및 단위 테스트
+| 파일명 | 역할 설명 |
+| :--- | :--- |
+| [`SqlPipeline.cs`](../src/bindings/SqlEngine.Core/SqlPipeline.cs) | .NET 및 Uno Platform 데스크톱 GUI(`SqlApp`) 연동을 위한 C# P/Invoke 바인딩 계층 |
+| [`tests/test_postprocessor.c`](../tests/test_postprocessor.c) | 예약어 보정, 식별자 교정, 복합 오타, n-gram, 체이닝, semantic fallback 등 17개 검증 시나리오 C 단위 테스트 |
 
 ---
 
@@ -42,146 +48,11 @@ C 프로젝트에서 헤더를 인클루드하여 정적 라이브러리(`postpr
 
 ---
 
-## 3. 빌드 및 테스트 방법 (CMake)
-
-루트 `CMakeLists.txt`를 통해 프로젝트 전체와 함께 빌드됩니다:
-
-### 빌드
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
-```
-
-빌드 산출물:
-* `build/postprocessor.lib` (또는 `libpostprocessor.a`): 다른 C 애플리케이션 및 CLI에서 링크 가능한 정적 라이브러리
-* `build/sql_engine.dll` (또는 `libsql_engine.so`): GUI / C# P/Invoke 연동용 동적 공유 라이브러리
-* `build/test_postprocessor`: 단위 테스트 실행 파일
-
-### C 단위 테스트 실행
-```bash
-ctest --test-dir build -R postprocessor -C Release --output-on-failure
-# 또는 바이너리 직접 실행:
-./build/test_postprocessor
-```
-Python pytest와 동일한 시나리오(예약어 보정, 식별자 보정, 복합 오타, n-gram, 체이닝, semantic fallback 등 17개 검증)를 모두 확인합니다.
-
----
-
-## 4. 라이브러리로 사용하기
-
-### 1) 통합 C API (`sql_postprocess`) - 권장
-동적 공유 라이브러리(`sql_engine.dll`) 또는 `pipeline.h`를 통해 DB 스키마 로드와 교정을 원스톱으로 처리합니다:
-
-```c
-#include "pipeline.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(void) {
-    const char *input_sql = "SELETC usr_name, emil FRMO users WHERE manger_id = 1";
-    
-    // 5단계 계단식 전략: "none", "keyword", "typo", "ngram", "semantic"
-    char *fixed_sql = sql_postprocess(input_sql, "ngram", "shop.db", 0, 0.0);
-    
-    if (fixed_sql != NULL) {
-        printf("교정 결과: %s\n", fixed_sql);
-        // 출력: SELECT user_name, email FROM users WHERE manager_id = 1
-        sql_free_string(fixed_sql);
-    }
-    return 0;
-}
-```
-
-### 2) C# P/Invoke 바인딩 (`SqlEngine.Core` - Uno Platform GUI 연동)
-C# .NET 8 및 Uno Platform GUI 프로젝트에서는 `SqlPipeline.Postprocess()`를 직접 호출할 수 있습니다.
-`sql_engine.dll`은 `SqlEngine.Core.csproj` 빌드 시 자동으로 출력 디렉터리에 복사됩니다.
-
-```csharp
-using SqlEngine.Core;
-
-// 1. 단독 SQL 오타 교정
-string correctedSql = SqlPipeline.Postprocess(
-    sql: "SELETC usr_name, emil FRMO users WHERE manger_id = 1",
-    strategy: "ngram", // 5단계 계단식 전략
-    dbPath: "shop.db"
-);
-
-Console.WriteLine($"교정 결과: {correctedSql}");
-// 출력: SELECT user_name, email FROM users WHERE manager_id = 1
-
-// 2. GUI 프로세스 보호 안전 장치 (Crash Prevention)
-// 비 ASCII 입력(한글 등)이나 잘못된 쿼리가 전달되더라도 C 엔진 내부의
-// thread-local setjmp/longjmp bailout 메커니즘을 통해 GUI 호스트 프로세스가
-// 비정상 종료(exit(1))되지 않고 안전하게 null 반환 및 에러 문자열을 기록합니다.
-```
-
-### 3) 저수준 C API (`postprocessor.h`)
-정적 라이브러리 직접 링크 시 토크나이저와 사전 배열을 직접 전달하여 사용할 수 있습니다:
-
-```c
-#include "postprocessor.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(void) {
-    const char *dictionary[] = {
-        "users", "user_name", "email", "id", "name", "department", "manager_id"
-    };
-    size_t dict_size = sizeof(dictionary) / sizeof(dictionary[0]);
-
-    const char *input_sql = "SELETC usr_name, emil FRMO users WHERE manger_id = 1";
-    char *fixed_sql = process_sql(input_sql, "typo,ngram", dictionary, dict_size, 0, 0.0);
-
-    printf("교정 결과: %s\n", fixed_sql);
-    free(fixed_sql);
-    free_semantic_cache();
-    return 0;
-}
-```
-
----
-
-## 5. CLI 단독 후처리 도구로 사용하기 (`sql-cli --postprocess`)
-
-신경망 모델 없이 입력 SQL만 직접 교정할 때는 통합 CLI 도구인 `sql-cli`의 `--postprocess` 모드를 사용합니다.
-한 줄 실행 시 모든 옵션을 명시적으로 지정해야 합니다 (기본값 없음):
-
-```bash
-# 1. 예약어 보정만 적용 (Stage 1: keyword, --db 불필요)
-./build/sql-cli --postprocess "SELETC * FRMO users" --strategy keyword
-
-# 2. Typo 오타 교정 적용 (Stage 2: typo, --db 필수)
-./build/sql-cli --postprocess "SELETC usr_name, emil FRMO users" --strategy typo --db assets/stage1-contract2-rc1/shop.db
-
-# 3. N-gram 매칭 교정 적용 (Stage 3: ngram, --db 필수)
-./build/sql-cli --postprocess "SELECT id FROM departmnt" --strategy ngram --db assets/stage1-contract2-rc1/shop.db
-
-# 4. GloVe 차원 및 코사인 임계값 지정하여 Semantic 교정 (Stage 4: semantic, --db, --dim, --threshold 필수)
-./build/sql-cli --postprocess "SELECT usr FROM users" --strategy semantic --dim 300 --threshold 0.5 --db assets/stage1-contract2-rc1/shop.db
-
-# 5. JSON 파일 일괄 후처리 (input.json 내 "sql" 키 탐색 -> output.json 내 "input", "output"으로 저장)
-./build/sql-cli --postprocess --json input_sql.json output_sql.json --strategy typo --db assets/stage1-contract2-rc1/shop.db
-```
-
----
-
-## 6. 벡터 임베딩(Semantic) 데이터 연동 방법
-
-임베딩 파일(`semantic_dict_<dim>d.bin`)은 `scripts/fetch-assets` 스크립트를 통해 원격 GitHub Release에서 가져올 수 있으며, `assets/<태그명>/` 폴더에 위치합니다:
-
-```bash
-# Release에서 300d 임베딩 파일 다운로드
-scripts/fetch-assets stage1-contract2-rc1 embedding
-```
-이후 `--strategy semantic --dim 300` 옵션을 지정하면 동일 폴더의 `semantic_dict_300d.bin`을 로드하여 사용합니다.
-
----
-
-## 7. 심층 기술 자료: 임베딩 계층 및 C 후처리기 상세 (Deep-Dive Guide)
+## 3. 심층 기술 자료: 임베딩 계층 및 C 후처리기 상세 (Deep-Dive Guide)
 
 본 절은 발표 자료(슬라이드 및 대본) 및 기술 심층 분석을 위한 기술 정리 자료입니다. 복잡한 수식 전개는 배제하고, 각 알고리즘의 **핵심적인 결론**과 **수식이 갖는 본질적인 의미 및 개념적 의의**를 직관적으로 정리했습니다.
 
-### 7.1 `capstone-design-1`: 임베딩 모듈 (`src/models/embedding.py`)
+### 3.1 `capstone-design-1`: 임베딩 모듈 (`src/models/embedding.py`)
 
 #### 1) 핵심 역할 및 개념적 의의 (Role & Significance)
 
@@ -249,7 +120,7 @@ Self-Attention 연산 시 각 단어의 벡터는 **자신의 위치 번호(0, 1
 
 ---
 
-### 7.2 `capstone-sql-cli`: C 언어 후처리기 (`src/core/postprocessor/`)
+### 3.2 `capstone-sql-cli`: C 언어 후처리기 (`src/core/postprocessor/`)
 
 #### 1) 3단계(3-Stage) 구조 및 핵심 역할 (Architecture & Role)
 
@@ -428,63 +299,3 @@ $$\Downarrow$$
 - **개념적 의의**:
   - 단순 치환만 하고 문장을 새로 만들면 공백 간격, 콤마 위치, 리터럴 따옴표 등 원본 쿼리의 중요한 구문 서식이 훼손될 수 있습니다.
   - Stage 3는 토큰 스트림에 온전히 보존된 비단어 토큰(공백, 기호)들을 그대로 유지한 채 재조립함으로써, **원본의 문장 구조를 100% 무결하게 유지하면서 데이터베이스 엔진에 안전하게 쿼리를 전달하는 최종 완성 단계**입니다.
-
----
-
-### 7.3 두 모듈의 상호작용 및 요약
-
-| 구분 | `capstone-design-1` (`embedding.py`) | `capstone-sql-cli` (C 후처리기) |
-| :--- | :--- | :--- |
-| **시스템 내 위치** | 모델 내부의 **최전방 입력 및 주의집중(Attention) 계층** | 모델 추론 완료 후 **최종 출력 쿼리 정제 계층** |
-| **문제 정의** | 단어의 의미와 문장 내 상대적 거리감을 어떻게 인공지능에게 정확히 학습시킬 것인가? | 소형 모델이 내놓은 불완전한 결과물을 어떻게 실제 `shop.db`에서 에러 없이 실행시킬 것인가? |
-| **해결의 핵심** | • **Weight Tying**: 입출력 공간 일관성 및 파라미터 절감<br>• **RoPE**: 크기 왜곡 없이 각도 회전만으로 상대 거리 보존 | • **3-Stage 파이프라인**: 예약어 선행 보정 $\rightarrow$ 식별자 교정 $\rightarrow$ 서식 유지 재조립<br>• **Zero-Dependency C**: 외부 의존성 없는 독립적 C 언어 엔진 |
-| **궁극적 의의** | **신경망 모델의 SQL 생성 능력과 표현력 극대화** | **실제 서비스 환경에서 쿼리 실행 성공률 100% 보장** |
-
----
-
-### 7.4 발표 슬라이드 핵심 구성안 (총 2분 분량)
-
-- **발표 시간 배분**:
-  - **[Slide 1] 임베딩 계층 (`capstone-design-1`)**: 약 40~50초
-  - **[Slide 2] C 후처리기 (`capstone-sql-cli`)**: 약 1분 10초 ~ 1분 20초
-
-#### [Slide 1] 모델 입력 계층: TokenEmbedding & RoPE (약 45초)
-> **대상 모듈**: `capstone-design-1/src/models/embedding.py`
-
-```text
-[Slide 1] 모델 입력 계층: TokenEmbedding & RoPE
-
-1. TokenEmbedding: 단어의 의미 좌표화
-   • 변환 흐름: 단어(Token) ──> 정수 번호(Token ID) ──> 의미 좌표(Dense Vector)
-   • 역할: 텍스트를 AI가 이해할 수 있는 다차원 의미 공간의 벡터로 변환
-   • Weight Tying: 입력과 출력 계층의 가중치를 공유하여 모델 파라미터 50% 절감
-
-2. RoPE: 단어 간 상대적 위치 거리 부여
-   • 동작 원리: 위치 순서에 비례하여 단어 벡터를 각도(θ)만큼 회전
-   • 핵심 의의: 단어의 의미(크기)는 훼손하지 않고, 단어 사이의 '상대적 문법 거리'만 주입
-```
-
-#### [Slide 2] C 후처리기: 3-Stage SQL 무결 복원 (약 1분 15초)
-> **대상 모듈**: `capstone-sql-cli/src/core/postprocessor/`
-
-```text
-[Slide 2] C 후처리기: 3-Stage SQL 무결 복원
-
-[도입 목적] 소형 모델의 키워드 오타 및 스키마 환각을 실제 shop.db에서 100% 실행 가능하게 복원
-
-• Stage 1 (예약어 선행 보정): Gestalt Pattern Matching
-  - "SELETC" → "SELECT", "FRMO" → "FROM"
-  - 예약어가 틀리면 구문 파싱 자체가 불가하므로 SQL 골격 선제 복구
-
-• Stage 2 (식별자 교정): shop.db 15개 스키마 기반 정밀 치환
-  - Typo: "stck" → "stock" (Gestalt Pattern Matching, 단순 오타 복원)
-  - N-gram: "categry" → "category" (2-gram Jaccard, 모음 누락 복원)
-  - Semantic: "products" → "items" (GloVe Cosine Sim 0.5251, 의미 환각 교정)
-    * snake_case 복합 컬럼명은 언더바(_) 분리 후 평균 풀링(v_mean) 적용
-
-• Stage 3 (서식 유지 재조립 & 실행): reconstruct_sql
-  - 원본 공백·기호 서식을 100% 보존 결합 → 실제 shop.db에서 무결 실행 성공
-  - [입력] SELETC item_name, categry FRMO products WHERE stck = 0
-  - [출력] SELECT item_name, category FROM items WHERE stock = 0
-```
-

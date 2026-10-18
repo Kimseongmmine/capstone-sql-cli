@@ -99,11 +99,13 @@
         <!-- New Chat Button -->
         <Button Grid.Row="1" Margin="14,4,14,10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                 Command="{x:Bind ViewModel.CreateNewSessionCommand}"
-                Background="{ThemeResource AccentFillColorDefaultBrush}"
-                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                Background="White"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                 CornerRadius="6" Padding="12,8">
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <FontIcon Glyph="&#xE710;" FontSize="13" />
+            <FontIcon Glyph="&#xE710;" FontSize="13" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <TextBlock Text="새 대화" FontWeight="SemiBold" FontSize="13" />
           </StackPanel>
         </Button>
@@ -305,8 +307,8 @@
 
       <!-- ==================== 2. 단일 통합 대화 구역 (메인 영역 내 중앙 정렬) ==================== -->
       <Grid Grid.Row="1"
-            HorizontalAlignment="Center"
-            MaxWidth="1150"
+            HorizontalAlignment="Stretch"
+            MaxWidth="800"
             MinWidth="0"
             Margin="24,0"
             RowDefinitions="*,Auto">
@@ -315,7 +317,7 @@
         <ScrollViewer Grid.Row="0" x:Name="ChatScrollViewer"
                       Padding="0,16" MinWidth="0"
                       HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Hidden"
                       HorizontalContentAlignment="Stretch">
           <StackPanel HorizontalAlignment="Stretch">
 
@@ -339,19 +341,19 @@
                   <TextBlock Text="Recommended Prompt Examples" FontSize="11" FontWeight="SemiBold"
                              Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
                   <Button Command="{x:Bind ViewModel.UsePromptSuggestionCommand}"
-                          CommandParameter="What are the top 5 most sold products in shop.db?"
+                          CommandParameter="please show me information of peter."
                           CornerRadius="6" Padding="12,7" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                       <FontIcon Glyph="&#xE8BD;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                      <TextBlock Text="What are the top 5 most sold products in shop.db?" FontSize="12" />
+                      <TextBlock Text="please show me information of peter." FontSize="12" />
                     </StackPanel>
                   </Button>
                   <Button Command="{x:Bind ViewModel.UsePromptSuggestionCommand}"
-                          CommandParameter="Show total order count and total sales revenue."
+                          CommandParameter="show me where peter lives in."
                           CornerRadius="6" Padding="12,7" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                       <FontIcon Glyph="&#xE8BD;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                      <TextBlock Text="Show total order count and total sales revenue." FontSize="12" />
+                      <TextBlock Text="show me where peter lives in." FontSize="12" />
                     </StackPanel>
                   </Button>
                   <Button Command="{x:Bind ViewModel.UsePromptSuggestionCommand}"
@@ -400,8 +402,14 @@
                               <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <TextBlock Text="Model" FontWeight="SemiBold" FontSize="14.5" VerticalAlignment="Center" />
 
-                                <!-- Elapsed Time Badge -->
-                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="7,3" VerticalAlignment="Center">
+                                <!-- Thinking Progress Ring (답변 생성 대기 중) -->
+                                <ProgressRing Width="14" Height="14" IsActive="True" VerticalAlignment="Center"
+                                              Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                              Visibility="{x:Bind IsWaitingResponse, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                <!-- Elapsed Time Badge (생성 완료 후) -->
+                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="7,3" VerticalAlignment="Center"
+                                        Visibility="{x:Bind HasSql, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                   <StackPanel Orientation="Horizontal" Spacing="4">
                                     <FontIcon Glyph="&#xE823;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                                     <TextBlock Text="{x:Bind InferenceTimeMs, Mode=OneWay, Converter={StaticResource ElapsedMsConverter}}"
@@ -409,12 +417,7 @@
                                   </StackPanel>
                                 </Border>
 
-                                <!-- Stop Reason Badge -->
-                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="7,3" VerticalAlignment="Center"
-                                        Visibility="{x:Bind HasSql, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                  <TextBlock Text="{x:Bind StopReason, Mode=OneWay}"
-                                             FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </Border>
+
                               </StackPanel>
 
                               <!-- Right Action Buttons: Play (Run) + Copy -->
@@ -480,91 +483,119 @@
                               </Border>
                             </StackPanel>
 
-                            <!-- Inline Query Result Table (From Run Button) -->
-                            <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
-                                    CornerRadius="8" Margin="0,4,0,0"
-                                    Visibility="{x:Bind HasQueryResult, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                              <StackPanel Padding="14,12">
-                                <!-- Query Execution Header -->
-                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                  <TextBlock Text="DB 쿼리 실행 결과" FontWeight="Bold" FontSize="13.5"
-                                             Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-                                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind QueryResult.RowCount, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="행" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="•" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="{x:Bind QueryResult.ExecutionTimeMs, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="ms" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                  </StackPanel>
-                                </Grid>
-
-                                <!-- Error in Query if any -->
-                                <TextBlock Text="{x:Bind QueryResult.ErrorMessage, Mode=OneWay}"
-                                           IsTextSelectionEnabled="True" TextWrapping="Wrap"
-                                           Foreground="{ThemeResource SystemFillColorCriticalBrush}" FontSize="13" Margin="0,4"
-                                           Visibility="{x:Bind QueryResult.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-
-                                <!-- Table Records -->
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                                              Visibility="{x:Bind QueryResult.HasRows, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                  <StackPanel Margin="0,4">
-                                    <!-- Column Headers -->
-                                    <ItemsControl ItemsSource="{x:Bind QueryResult.Columns}">
-                                      <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                          <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                      </ItemsControl.ItemsPanel>
-                                      <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                          <Border MinWidth="110" Padding="10,6"
-                                                  Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                  BorderThickness="0,0,1,1">
-                                            <TextBlock Text="{Binding}" FontWeight="SemiBold" FontSize="12.5"
-                                                       IsTextSelectionEnabled="True"
-                                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                                          </Border>
-                                        </DataTemplate>
-                                      </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-
-                                    <!-- Rows -->
-                                    <ItemsControl ItemsSource="{x:Bind QueryResult.Rows}">
-                                      <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                          <ItemsControl ItemsSource="{Binding}">
-                                            <ItemsControl.ItemsPanel>
-                                              <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                              </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                              <DataTemplate>
-                                                <Border MinWidth="110" Padding="10,6"
-                                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                        BorderThickness="0,0,1,1">
-                                                  <TextBlock Text="{Binding}" FontSize="12.5"
-                                                             IsTextSelectionEnabled="True"
-                                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                             TextTrimming="CharacterEllipsis" />
-                                                </Border>
-                                              </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                          </ItemsControl>
-                                        </DataTemplate>
-                                      </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                  </StackPanel>
-                                </ScrollViewer>
-                              </StackPanel>
-                            </Border>
-
                             <!-- Running Query Indicator -->
                             <ProgressBar IsIndeterminate="True" Height="2"
                                          Visibility="{x:Bind IsRunningQuery, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
+                          </StackPanel>
+                        </Border>
+                      </Grid>
+
+                      <!-- 3) Query Result Message: Content-Fitted Card -->
+                      <Grid HorizontalAlignment="Left" MaxWidth="800" Margin="0,4,20,4"
+                            Visibility="{x:Bind IsQueryResultSender, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="18,18,18,4" Padding="18,14">
+                          <StackPanel>
+                            <!-- Query Execution Header -->
+                            <Grid ColumnDefinitions="*,Auto">
+                              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE8F1;" FontSize="13" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="DB 쿼리 실행 결과" FontWeight="Bold" FontSize="13.5"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                  <TextBlock Text="{x:Bind QueryResult.RowCount, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                  <TextBlock Text="행" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                  <TextBlock Text="•" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                  <TextBlock Text="{x:Bind QueryResult.ExecutionTimeMs, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                  <TextBlock Text="ms" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                              </StackPanel>
+
+                              <!-- 접기 / 펼치기 버튼 -->
+                              <Button Grid.Column="1" Click="ToggleQueryResult_Click"
+                                      Background="Transparent" BorderThickness="0" Padding="6,3" CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                  <!-- 펼쳐져 있을 때: "접기" -->
+                                  <StackPanel Orientation="Horizontal" Spacing="4"
+                                              Visibility="{x:Bind IsQueryResultExpanded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="접기" FontSize="11.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                    <FontIcon Glyph="&#xE70E;" FontSize="9.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                  </StackPanel>
+                                  <!-- 접혀 있을 때: "펼치기" -->
+                                  <StackPanel Orientation="Horizontal" Spacing="4"
+                                              Visibility="{x:Bind IsQueryResultExpanded, Mode=OneWay, Converter={StaticResource InverseVisibilityConverter}}">
+                                    <TextBlock Text="펼치기" FontSize="11.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                    <FontIcon Glyph="&#xE70D;" FontSize="9.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                  </StackPanel>
+                                </StackPanel>
+                              </Button>
+                            </Grid>
+
+                            <!-- 접히고 펼쳐지는 내용 구역 (에러 메시지 및 테이블) -->
+                            <StackPanel Visibility="{x:Bind IsQueryResultExpanded, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Margin="0,10,0,0">
+                              <!-- Error in Query if any -->
+                              <TextBlock Text="{x:Bind QueryResult.ErrorMessage, Mode=OneWay}"
+                                         IsTextSelectionEnabled="True" TextWrapping="Wrap"
+                                         Foreground="{ThemeResource SystemFillColorCriticalBrush}" FontSize="13" Margin="0,4"
+                                         Visibility="{x:Bind QueryResult.HasError, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                              <!-- Table Records -->
+                              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                            Visibility="{x:Bind QueryResult.HasRows, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Margin="0,4">
+                                  <!-- Column Headers -->
+                                  <ItemsControl ItemsSource="{x:Bind QueryResult.Columns, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                      <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                      </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                      <DataTemplate>
+                                        <Border MinWidth="110" Padding="10,6"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="0,0,1,1">
+                                          <TextBlock Text="{Binding}" FontWeight="SemiBold" FontSize="12.5"
+                                                     IsTextSelectionEnabled="True"
+                                                     Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                        </Border>
+                                      </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                  </ItemsControl>
+
+                                  <!-- Rows -->
+                                  <ItemsControl ItemsSource="{x:Bind QueryResult.Rows, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                      <DataTemplate>
+                                        <ItemsControl ItemsSource="{Binding}">
+                                          <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                              <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                          </ItemsControl.ItemsPanel>
+                                          <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                              <Border MinWidth="110" Padding="10,6"
+                                                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                      BorderThickness="0,0,1,1">
+                                                <TextBlock Text="{Binding}" FontSize="12.5"
+                                                           IsTextSelectionEnabled="True"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                              </Border>
+                                            </DataTemplate>
+                                          </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                      </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                  </ItemsControl>
+                                </StackPanel>
+                              </ScrollViewer>
+                            </StackPanel>
                           </StackPanel>
                         </Border>
                       </Grid>
@@ -591,7 +622,7 @@
 
                   <!-- 1) Text Input -->
                   <TextBox Grid.Row="0" x:Name="PromptTextBox"
-                           PlaceholderText="질문 또는 SQL을 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)"
+                           PlaceholderText="질문을 입력하세요.."
                            AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52" MaxHeight="160"
                            BorderThickness="0" Background="Transparent" Padding="6,6,6,8" FontSize="15"
                            IsSpellCheckEnabled="False"
@@ -703,31 +734,23 @@
                         </StackPanel>
                       </Border>
 
-                      <!-- Advanced Settings Flyout (Threshold, Dim) -->
+                      <!-- Advanced Settings Flyout (Threshold) -->
                       <Button Width="32" Height="32" Padding="0" CornerRadius="6" Background="Transparent" BorderThickness="0"
                               VerticalAlignment="Center"
-                              ToolTipService.ToolTip="후처리 세부 옵션 (Threshold, Dim)">
+                              ToolTipService.ToolTip="후처리 세부 옵션 (Threshold)">
                         <FontIcon Glyph="&#xE713;" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <Button.Flyout>
                           <Flyout Placement="Top">
-                            <StackPanel Width="230" Spacing="10" Padding="4">
-                              <TextBlock Text="후처리 세부 파라미터" FontWeight="Bold" FontSize="13" />
+                            <StackPanel Width="220" Spacing="8" Padding="4">
+                              <TextBlock Text="후처리 유사도 임계값" FontWeight="Bold" FontSize="13" />
                               <StackPanel Spacing="4">
                                 <Grid ColumnDefinitions="*,Auto">
-                                  <TextBlock Text="유사도 임계값 (Threshold):" FontSize="12" />
-                                  <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.SelectedSession.Threshold, Mode=OneWay}"
+                                  <TextBlock Text="Threshold:" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                  <TextBlock Grid.Column="1" Text="{x:Bind FormatThreshold(ViewModel.SelectedSession.Threshold), Mode=OneWay}"
                                              FontSize="12" Foreground="{ThemeResource AccentFillColorDefaultBrush}" FontWeight="SemiBold" />
                                 </Grid>
-                                <Slider Minimum="0.0" Maximum="1.0" StepFrequency="0.05"
+                                <Slider Minimum="0.0" Maximum="1.0" StepFrequency="0.05" SnapsTo="StepValues" TickFrequency="0.05"
                                         Value="{x:Bind ViewModel.SelectedSession.Threshold, Mode=TwoWay}" />
-                              </StackPanel>
-                              <StackPanel Spacing="4">
-                                <TextBlock Text="시맨틱 임베딩 차원 (Dim):" FontSize="12" />
-                                <TextBox x:Name="DimTextBox"
-                                         Text="{x:Bind ViewModel.SelectedSession.Dim, Mode=TwoWay, Converter={StaticResource SafeIntConverter}, ConverterParameter=0}"
-                                         LostFocus="DimTextBox_LostFocus"
-                                         FontSize="12" CornerRadius="4"
-                                         PlaceholderText="기본 0 또는 300" />
                               </StackPanel>
                             </StackPanel>
                           </Flyout>
@@ -735,15 +758,17 @@
                       </Button>
 
                       <!-- Send Button (Height="32", Width="32") -->
-                      <Button Click="SendButton_Click"
-                              Background="{ThemeResource AccentFillColorDefaultBrush}"
-                              Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                      <Button Style="{StaticResource AccentButtonStyle}"
+                              Click="SendButton_Click"
                               CornerRadius="16" Width="32" Height="32" Padding="0"
                               VerticalAlignment="Center" ToolTipService.ToolTip="전송 (Enter)">
                         <Grid>
                           <FontIcon Glyph="&#xE724;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                     Visibility="{x:Bind ViewModel.IsGenerating, Mode=OneWay, Converter={StaticResource InverseVisibilityConverter}}" />
-                          <ProgressRing Width="16" Height="16" IsActive="{x:Bind ViewModel.IsGenerating, Mode=OneWay}"
+                          <ProgressRing Width="16" Height="16"
+                                        Foreground="White"
+                                        IsActive="{x:Bind ViewModel.IsGenerating, Mode=OneWay}"
                                         Visibility="{x:Bind ViewModel.IsGenerating, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                         </Grid>
                       </Button>
@@ -754,9 +779,6 @@
                 </Grid>
               </Border>
 
-              <!-- Status Message -->
-              <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" FontSize="11"
-                         Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
             </StackPanel>
         </Grid>
 

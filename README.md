@@ -55,7 +55,7 @@ capstone-sql-cli/
 ├── assets/                            # 다운로드된 모델(.gguf), DB(.db), 임베딩(.bin)
 ├── fixtures/v<N>/                     # 계약 버전별 소형 검증 모델 및 정답 데이터
 ├── tests/                             # 단위, 오류 거부, 계약 픽스처 테스트
-├── docs/                              # 상세 문서 (CLI_USAGE, GUI_USAGE, POSTPROCESSOR_GUIDE)
+├── docs/                              # 상세 문서 (POSTPROCESSOR_GUIDE)
 ├── scripts/
 │   └── fetch-assets                   # 릴리스 에셋 다운로드 스크립트
 ├── CMakeLists.txt                     # CMake 빌드 설정
@@ -177,8 +177,6 @@ cmake --build build --target sql-cli --config Release
 
 ### 2) CLI 실행 방법
 
-상세한 모든 옵션과 파라미터는 [docs/CLI_USAGE.md](docs/CLI_USAGE.md)를 참고하세요.
-
 ```bash
 # [추천 1] 대화형 REPL 쉘 실행
 ./build/sql-cli -i
@@ -198,7 +196,7 @@ cmake --build build --target sql-cli --config Release
 
 ## 5. Uno Platform(Windows11 (WinUI3) & Cross-Platform(Skia))
 
-.NET 10 (LTS) 기반의 데스크톱 대화형 GUI 애플리케이션입니다. C 추론 엔진(`sql_engine.dll` / `libsql_engine.so`) 및 SQLite와 직접 연동되어 Claude Desktop 스타일의 멀티 세션 대화 환경을 제공합니다 (상세 가이드: [docs/GUI_USAGE.md](docs/GUI_USAGE.md)).
+.NET 10 (LTS) 기반의 데스크톱 대화형 GUI 애플리케이션입니다. C 추론 엔진(`sql_engine.dll` / `libsql_engine.so`) 및 SQLite와 직접 연동되어 Claude Desktop 스타일의 멀티 세션 대화 환경을 제공합니다.
 
 ### 1) 사전 준비: C 공유 라이브러리 및 바인딩 빌드
 
@@ -242,13 +240,22 @@ dotnet build src/bindings/SqlEngine.Core
 
 #### [Windows 전용 (WinUI 3)]
 ```powershell
+# 개발(Debug) 빌드
 dotnet build src/gui/SqlApp -f net10.0-windows10.0.26100
+
+# 릴리즈(Release) 빌드 (최적화 및 빠른 반응 속도)
+dotnet build src/gui/SqlApp -c Release -f net10.0-windows10.0.26100
 ```
-* **개발 빌드 출력**: `src/gui/SqlApp/bin/Debug/net10.0-windows10.0.26100/SqlApp.exe`
+* **Debug 빌드 출력**: `src/gui/SqlApp/bin/Debug/net10.0-windows10.0.26100/SqlApp.exe`
+* **Release 빌드 출력**: `src/gui/SqlApp/bin/Release/net10.0-windows10.0.26100/SqlApp.exe`
 
 #### [모든 플랫폼 (Skia)]
 ```bash
+# 개발(Debug) 빌드
 dotnet build src/gui/SqlApp -f net10.0-desktop
+
+# 릴리즈(Release) 빌드
+dotnet build src/gui/SqlApp -c Release -f net10.0-desktop
 ```
 
 ---
@@ -257,17 +264,26 @@ dotnet build src/gui/SqlApp -f net10.0-desktop
 
 #### [Windows 전용 (WinUI 3)]
 ```powershell
-# [추천] 빌드된 네이티브 .exe 직접 실행
+# [추천] 빌드된 네이티브 .exe 직접 실행 (Debug)
 .\src\gui\SqlApp\bin\Debug\net10.0-windows10.0.26100\SqlApp.exe
 
-# 또는 dotnet run 실행 (프로필 우회 플래그)
+# [추천] 빌드된 네이티브 .exe 직접 실행 (Release - 권장)
+.\src\gui\SqlApp\bin\Release\net10.0-windows10.0.26100\SqlApp.exe
+
+# 또는 dotnet run 실행 (Debug)
 dotnet run --project src/gui/SqlApp -f net10.0-windows10.0.26100 --no-launch-profile
+
+# 또는 dotnet run 실행 (Release)
+dotnet run --project src/gui/SqlApp -c Release -f net10.0-windows10.0.26100 --no-launch-profile
 ```
 
 #### [모든 플랫폼 (Skia)]
 ```bash
-# 개발 모드 실행
+# 개발(Debug) 모드 실행
 dotnet run --project src/gui/SqlApp -f net10.0-desktop
+
+# 릴리즈(Release) 모드 실행
+dotnet run --project src/gui/SqlApp -c Release -f net10.0-desktop
 ```
 
 ---

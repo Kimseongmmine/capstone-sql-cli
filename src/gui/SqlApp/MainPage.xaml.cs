@@ -28,6 +28,10 @@ public sealed partial class MainPage : Page
                     PromptTextBox.Text = string.Empty;
                 }
             }
+            else if (e.PropertyName == nameof(ViewModel.IsGenerating))
+            {
+                ScrollToBottom();
+            }
             else if (e.PropertyName == nameof(ViewModel.InputText))
             {
                 if (PromptTextBox != null && PromptTextBox.Text != ViewModel.InputText)
@@ -59,14 +63,38 @@ public sealed partial class MainPage : Page
 
     private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        ScrollToBottom();
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+        {
+            int total = _currentHookedSession?.Messages.Count ?? 0;
+            // 새로 추가/삽입된 위치가 대화의 최신(맨 끝)인 경우에만 아래로 스크롤
+            if (e.NewStartingIndex >= total - 1)
+            {
+                ScrollToBottom();
+            }
+        }
+        else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+        {
+            ScrollToBottom();
+        }
     }
 
     private void ScrollToBottom()
     {
-        DispatcherQueue?.TryEnqueue(() =>
+        DispatcherQueue?.TryEnqueue(async () =>
         {
-            ChatScrollViewer?.ChangeView(null, ChatScrollViewer.ScrollableHeight, null);
+            ChatScrollViewer?.UpdateLayout();
+            if (ChatScrollViewer != null)
+            {
+                ChatScrollViewer.ChangeView(null, ChatScrollViewer.ExtentHeight, null, false);
+            }
+
+            // 메시지 렌더링 및 레이아웃 Measure/Arrange 완료 후 정확한 끝점으로 2차 보정
+            await Task.Delay(60);
+            ChatScrollViewer?.UpdateLayout();
+            if (ChatScrollViewer != null)
+            {
+                ChatScrollViewer.ChangeView(null, ChatScrollViewer.ExtentHeight, null, false);
+            }
         });
     }
 
@@ -122,6 +150,8 @@ public sealed partial class MainPage : Page
             }
         }
     }
+
+    public string FormatThreshold(double val) => val.ToString("F2");
 
     private void DimTextBox_LostFocus(object sender, RoutedEventArgs e)
     {
@@ -201,6 +231,14 @@ public sealed partial class MainPage : Page
             {
                 ViewModel.CopySqlCommand.Execute(message.Sql);
             }
+        }
+    }
+
+    private void ToggleQueryResult_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement elem && elem.DataContext is ChatMessage message)
+        {
+            message.IsQueryResultExpanded = !message.IsQueryResultExpanded;
         }
     }
 

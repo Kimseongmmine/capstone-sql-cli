@@ -36,6 +36,8 @@ namespace SqlApp.Services
         public long InferenceTimeMs { get; set; }
         public DateTime Timestamp { get; set; }
         public string? ErrorMessage { get; set; }
+        public QueryResultData? QueryResult { get; set; }
+        public Guid? ResultMessageId { get; set; }
     }
 
     public class SessionStorageService
@@ -86,7 +88,9 @@ namespace SqlApp.Services
                             StopReason = m.StopReason,
                             InferenceTimeMs = m.InferenceTimeMs,
                             Timestamp = m.Timestamp,
-                            ErrorMessage = m.ErrorMessage
+                            ErrorMessage = m.ErrorMessage,
+                            QueryResult = m.QueryResult,
+                            ResultMessageId = m.ResultMessageId
                         });
                     }
                     dtos.Add(dto);
@@ -140,7 +144,9 @@ namespace SqlApp.Services
                             StopReason = m.StopReason,
                             InferenceTimeMs = m.InferenceTimeMs,
                             Timestamp = m.Timestamp,
-                            ErrorMessage = m.ErrorMessage
+                            ErrorMessage = m.ErrorMessage,
+                            QueryResult = m.QueryResult,
+                            ResultMessageId = m.ResultMessageId
                         });
                     }
                     list.Add(s);
